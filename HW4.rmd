@@ -1,0 +1,130 @@
+---
+title: "Homework 4"
+author: "Tien Huynh (3408549), PSTAT 126, Winter 2021"
+date: "__Due date: March 10, 2021 at 23:59 PT__"
+graphics: yes
+output: pdf_document
+---
+
+__Note:__ Please show all the procedures of your analysis, and prepare the homework solution using RMarkdown. All code should be well documented. A RMarkdown homework template is available on GauchoSpace. Homework should be submitted on GauchoSpace.
+
+You should write up your homework solution on your own. In particular, do not share your homework RMarkdown file with other student.
+ 
+---------------------------------
+
+Q1. This question uses the _Auto_ dataset available in the _ISLR_ package. The dataset under the name _Auto_ is automatically available once the _ISLR_ package is loaded (as shown in the following code chunk).
+
+```{r load, message=F, warning=F, results="hide"}
+library(ISLR)
+Auto
+```
+
+The dataset _Auto_ contains the following information for 392 vehicles:
+
+- mpg: miles per gallon
+- cylinders: number of cylinders (between 4 and 8)
+- displacement: engine displacement (cu.inches)
+- horsepower: engine horsepower
+- weight: vehicle weight (lbs)
+- acceleration: time to accelerate from 0 to 60 mph (seconds)
+- year: model year (modulo 100)
+- origin: origin of the vehicle (automatically coded as 1: American, 2: European, 3: Japanese)
+- name: vehicle name
+
+Our goal is to analyze various linear models where _mpg_ is the response variable.
+
+  (a). In this dataset, which predictors are qualitative, and which predictors are quantitative?
+  
+```{r summary-predictors}
+summary(Auto)
+```
+ 
+Name and origin are qualitative predictors. Cylinders, displacement, horsepower, weight, acceleration, and year are quantitative predictors.
+  
+  (b).  Fit a MLR model to the data, in order to predict _mpg_ using all of the other predictors except for _name_. For each predictor in the fitted MLR model, comment on whether you can reject the null hypothesis that there is no linear association between that predictor and _mpg_, conditional on the other predictors in the model.
+  
+```{r mlr-model}
+mod <- lm(formula = mpg ~ cylinders + displacement + horsepower + weight + 
+            acceleration + year + factor(origin), data = Auto)
+summary(mod)
+```
+
+Given a significance level of 0.05, you can reject the null hypothesis that there is no linear association between that predictor and _mpg_ for the following predictors: displacement, weight, year, (origin)2, and (origin)3. This is conditional on the other predictors in the model.
+
+In addition, you fail to reject the null hypothesis for the following predictors given a significance level of 0.05: cylinders, horsepower, and acceleration.
+  
+  (c). Indicate clearly how the coefficient estimates associated with the predictor _origin_ should be interpreted. 
+  
+The coefficient estimates of (origin)2 (as shown in the summary output) is associated with $\hat\beta_{European}$ which equals 2.6300024. $\hat\beta_{European}$ represents the estimated average difference in mpg between European vehicles and American vehicles given that the other predictor variables are observed to be the same. 
+
+The coefficient estimates of (origin)3 (as shown in the summary output) is associated with $\hat\beta_{Japanese}$ which equals 2.8532282. $\hat\beta_{Japanese}$ represents the estimated average difference in mpg between Japanese vehicles and American vehicles given that the other predictor variables are observed to be the same.
+
+The level of American (vehicles), which is also (origin)1, is the baseline level.
+  
+  (d). What _mpg_ do you predict for a Japanese car with three cylinders, displacement 100, horsepower of 85, weight of 3000, acceleration of 20, built in the year 1980?
+```{r predict}
+x0 <- data.frame(cylinders=3, displacement=100, horsepower=85, weight=3000,
+                 acceleration=20, year=80, origin=3)
+predict(mod, newdata=x0, interval="prediction")
+```
+
+A Japanese car with three cylinders, displacement 100, horsepower of 85, weight of 3000, acceleration of 20, built in the year 1980 is predicted to have a mpg of 27.89483.
+  
+  (e). On average, holding all other predictor variables fixed, what is the difference between the _mpg_ of a Japanese car and the _mpg_ of an European car? 
+
+```{r difference}
+e <- coefficients(summary(mod))[8,1]
+j <- coefficients(summary(mod))[9,1]
+difference <- j - e
+difference
+```
+
+The average difference between the _mpg_ of a Japanese car and the _mpg_ of an European car (holding all other predictor variables fixed) is 0.2232259.
+
+  (f). Fit a model to predict _mpg_ using _origin_ and _horsepower_, as well as an interaction between _origin_ and _horsepower_. Present the summary output of the fitted model, and write out the fitted linear model. 
+
+```{r}
+mod2 <- lm(formula = mpg~factor(origin)*horsepower, data=Auto)
+summary(mod2)
+```
+
+The fitted linear model is y = 34.476496 + 10.997230$x_{European}$ + 14.339718$x_{Japanese}$ - 0.121320$x_{horsepower}$ - 0.100515$x_{European}x_{horsepower}$ - 0.108723$x_{Japanese}x_{horsepower}$ .
+
+The level of American (vehicles), which is also (origin)1, is the baseline level.
+  
+  (g). Following the previous question: On average, how much does the _mpg_ of a Japanese car change with a one-unit increase in horsepower?
+  
+```{r one-unit-increase}
+res <- (-0.121320) + (-0.108723)
+res
+```
+
+The _mpg_ of a Japanese car will change by -0.230043 with a one-unit increase in horsepower.
+  
+  (h). If we are fitting a polynomial regression with _mpg_ as the response variable and _weight_ as the predictor, what should be a proper degree of that polynomial?
+  
+```{r polynomial-1}
+fit <- lm(formula = mpg~weight + I(weight), data=Auto)
+summary(fit)
+```
+  
+```{r polynomial-2}
+fit <- lm(formula = mpg~weight + I(weight^2), data=Auto)
+summary(fit)
+```
+
+The degree of that polynomial should be 2. 
+  
+  (i). Perform a __backward selection__, starting with the full model which includes all predictors except for _name_. What is the best model based on the adjusted $R^2$ criterion? What are the predictor variables in that best model?
+
+```{r backward}
+library(leaps)
+select.mod <- regsubsets(mpg ~ cylinders + displacement + horsepower + weight +
+                           acceleration + year + factor(origin), data = Auto,
+                         method = "backward")
+result=summary(select.mod)
+result
+which.max(result$adjr2)
+```
+
+A model with 7 predictors is the best model based on the adjusted $R^2$ criterion. These predictors should be cylinders, displacement, horsepower, weight, year, (origin)2, and (origin)3.
