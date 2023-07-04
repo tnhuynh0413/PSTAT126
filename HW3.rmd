@@ -1,0 +1,130 @@
+---
+title: "Homework 3"
+author: "Tien Huynh (3408549), PSTAT 126, Winter 2021"
+date: "__Due date: Feburary 24, 2021 at 23:59 PT__"
+graphics: yes
+output: pdf_document
+---
+
+__Note:__ Please show all the procedures of your analysis, and prepare the homework solution using RMarkdown. All code should be well documented. A RMarkdown homework template is available on GauchoSpace. Homework should be submitted on GauchoSpace.
+
+You should write up your homework solution on your own. In particular, do not share your homework RMarkdown file with other student.
+ 
+---------------------------------
+
+Q1. This question uses the same _fat_ dataset that we used in Homework 2. You can find the dataset either in the Homework 2 folder or the Homework 3 folder on GauchoSpace. The following command can be used to read the data into R. Make sure the "fat.csv" file is in the same folder as your R/Rmd file.
+
+```{r load, message=F, warning=F, results="hide"}
+fat <- read.csv(file = "fat.csv")
+```
+
+The dataset _fat_ contains measurements for 252 men on the following variables:
+
+- brozek: Percent body fat 
+- age: Age(yrs)
+- weight: Weight(lbs)
+- height: Height(inches)
+- neck: Neck circumference(cm)
+- chest: Chest circumference(cm)
+- abdom: Abdomen circumference (cm)
+- hip: Hip circumference (cm)
+
+Our goal is to run regression diagnostics on the linear model where _brozek_ is the response variable and all other 7 variables are the predictor variables.
+
+  (a). Calculate the fitted response values and the residuals from the linear model mentioned above. Use _head_ function to show the first 5 entries of the fitted response values and the first 5 entries of the residuals.
+  
+```{r fitted-response-values-residuals}
+mod <- lm(formula = brozek ~ ., data = fat)
+head(fitted(mod), 5)
+head(residuals(mod), 5)
+```
+
+  
+  (b). Use a graphical diagnostic approach to check if the random error has constant variance. Briefly explain what diagnostics method you use. What is your finding?
+  
+```{r constant-variance}
+plot(fitted(mod), residuals(mod), xlab='Fitted', ylab='Residuals')
+abline(h=0)
+```
+
+To check if the random error has constant variance, I used the diagnostics method of plotting the residuals against fitted values. From this plot, there are NO special pattern. Therefore, the constant variance assumption is satisfied in which the random error has constant variance.
+  
+  (c). Use a graphical method to check if the random errors follow a normal distribution. What do you conclude?
+  
+```{r}
+qqnorm(residuals(mod), ylab='Residuals', main='')
+qqline(residuals(mod))
+```
+
+A substantial amount of the points approximately follow the qqline. Therefore, I conclude that the normal assumption holds and the residuals follow a normal distribution.
+  
+  (d). Run a Shapiro-Wilk test to check if the random errors follow a normal distribution. What is the null hypothesis in this test? What is the p-value associated with the test? What is your conclusion? 
+
+```{r shapiro-test}
+shapiro.test(residuals(mod))
+```
+
+The null hypothesis for this is that the residuals are normally distributed. The p-value associated with the test is 0.4719. Given a significance level of 0.05, we fail to reject the null hypothesis (because our p-value is greater than the significance level) and conclude that the residuals follow a normal distribution.
+  
+  (e). Plot successive pairs of residuals. Do you find serial correlation among observations? 
+```{r pairs-of-residuals}
+n <- dim(fat)[1]
+plot(tail(residuals(mod), n - 1) ~ head(residuals(mod), n - 1),
+xlab = "(i)-th residual", ylab = "(i+1)-th residual")
+abline(h = 0, v = 0)
+```
+
+I did NOT find any serial correlation among observations after plotting the successive pairs of residuals. Therefore, the independence assumption is satisfied and each residual should be independent of each other.
+  
+  (f). Compute the hat matrix $\mathbf{H}$ in this dataset (you don't need to show the entire resulting $\mathbf{H}$ in your answer). Verify numerically that $\sum_{i = 1}^n \mathbf{H}_{ii} = p + 1$, where $p$ is the number of predictor variables.
+
+```{r hat-matrix}
+lev = hatvalues(mod)
+p = 7
+all.equal(sum(lev), (p+1))
+```
+
+  
+  (g). Check graphically if there is any high-leverage point.
+  
+```{r high-leverage-points}
+n=nrow(fat)
+p=7
+dat=data.frame(index=seq(n),leverage=lev)
+plot(leverage~index,col="white",data=dat,pch=NULL)
+text(leverage~index,labels = index,data=dat,cex=0.9,font=2)
+abline(h=(p+1)/n,col ="blue")
+abline(h=3*(p+1)/n,col="red", lty=2)
+```
+  
+Yes, there are 4 high-leverage points. They are the observations with index number 36, 39, 42, and 106.
+  
+  (h). Compute the standardized residuals. Without drawing a plot, is there any outlier?
+```{r outliers}
+r=rstandard(mod)
+which(abs(r)>=3)
+```
+
+Yes, there is 1 outlier (observation with index value 39). 
+
+  (i). Calculate the Cooks distance. How many observations in this dataset has a Cooks distance that is greater than 0.02?
+  
+```{r cooks-distance}
+d <- cooks.distance(mod)
+d
+which(d>0.02)
+```
+
+There are 4 observations in this dataset that has a Cooks distance greater than 0.02 (index number 39, 42, 207, and 250).
+  
+  (j). Remove the observation whose response variable equals 0. Then check whether the response in the modified dataset needs a Box-Cox transformation. If a Box-Cox transformation is necessary, what would be the form of the transformation?
+
+```{r}
+library(MASS)
+which(fat$brozek<=0)
+new <- fat[-182,]
+sum(new$brozek<=0)==0
+newmod <- lm(formula = brozek ~ ., data = new)
+boxcox(newmod,plotit=TRUE)
+```
+A Box-Cox transformation is NOT necessary with a 95% confidence level because that confidence interval includes $\lambda = 1$.
