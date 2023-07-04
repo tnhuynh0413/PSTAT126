@@ -1,0 +1,150 @@
+---
+title: "Homework 2"
+author: "Tien Huynh (3408549); PSTAT 126, Winter 2021"
+date: "__Due date: Feburary 10, 2021 at 23:59 PT__"
+graphics: yes
+output: pdf_document
+---
+
+__Note:__ Please show all the procedures of your analysis, and prepare the homework solution using RMarkdown. All code should be well documented. A RMarkdown homework template is available on GauchoSpace. Homework should be submitted on GauchoSpace.
+
+You should write up your homework solution on your own. In particular, do not share your homework RMarkdown file with other student.
+ 
+---------------------------------
+
+Q1. This question uses the _fat_ dataset available in the Homework 2 folder on GauchoSpace. The following command can be used to read the data into R. Make sure the "fat.csv" file is in the same folder as your R/Rmd file.
+
+```{r load, message=F, warning=F, results="hide"}
+fat <- read.csv(file = "fat.csv")
+```
+
+The dataset _fat_ contains measurements for 252 men on the following variables:
+
+- brozek: Percent body fat 
+- age: Age(yrs)
+- weight: Weight(lbs)
+- height: Height(inches)
+- neck: Neck circumference(cm)
+- chest: Chest circumference(cm)
+- abdom: Abdomen circumference (cm)
+- hip: Hip circumference (cm)
+
+Our goal is to study how _brozek_ is related to all other 7 variables.
+
+  (a). Use the _lm_ function in R to fit the MLR model with
+  _brozek_ as the response and the other 7 variables as
+  predictors. Display the summary output.
+  
+```{r problem-1-info}
+mod <- lm(formula = brozek ~ ., data = fat)
+summary(mod)
+```
+  
+  
+  (b). Which predictor variables are statistically significant under the significance threshold value of 0.05? 
+
+The Abdomen Circumference (abdom) and Neck Circumference (neck) are the predictor variables that are statistically significant under the significance threshold value of 0.05. 
+
+  (c). What proportion of the total variation in the response is
+  explained by the predictors?
+  
+```{r r-squared}
+rsquared <- summary(mod)$r.squared
+percent <- rsquared * 100
+percent
+```
+  
+  As shown above, 72.71498% of the total variation in the response is explained by the predictors.
+  
+  (d). What is the p-value for the global F-test. Do the 7 predictor variables explain a significant proportion of the variation in the response? 
+  
+```{r global-f-test}
+mod_M <- lm(brozek ~ ., fat)
+mod_m <- lm(brozek ~ 1, fat)
+anova(mod_m, mod_M)
+```
+  
+The p-value for the global F-test is less than $2.2*10^{-16}$ (0.00000000000000022). Therefore, the 7 predictor variables explain a significant proportion of the variation in the response.
+  
+  (e). Consider testing the null hypothesis $H_0: \beta_{neck} = 0$, where $\beta_{neck}$ is the coefficient corresponding to _neck_ in the MLR model. Use the _t value_ available in the summary output to compute the p-value associated with this test, and verify that the p-value you get is identical to the p-value provided in the summary output. 
+  
+```{r t-test}
+# t-test
+
+n <- dim(fat)[1] # number of observations
+p <- 7 # number of predictor variables
+t_value <- coefficients(summary(mod))[5,3] # t-value
+p_value <- pt(q = t_value, df = n-p-1) * 2
+p_value
+p_value == coefficients(summary(mod))[5,4]
+```
+
+  
+  (f). Suppose we are interested in either _weight_ or _height_ had any relation to the _brozek_. This corresponds to a null hypothesis of $H_0: \beta_{weight} = \beta_{height} = 0$. Construct a F-test, report the corresponding p-value, and your conclusion.
+  
+```{r f-test}
+# f-test
+
+mod_M1 <- lm(brozek ~ ., fat)
+mod_m1 <- lm(brozek ~ age + neck + chest + abdom + hip, fat)
+anova(mod_m1, mod_M1)
+```
+  The corresponding p-value is 0.009257. Given that the significance threshold value is 0.05, the null hypothesis is rejected. Therefore, $\beta_{weight}$ and/or $\beta_{height}$ is/are not equal to zero.
+  
+  (g). Use the summary output to construct a 99\% confidence interval for $\beta_{abdom}$. What is the interpretation of this confidence interval?
+  
+```{r confidence-interval}
+library(tibble)
+abdom_std_error <- coef(summary(mod))[7,2]
+adbom_beta_hat <- coefficients(mod)[7]
+t_pct <- qt(p = 0.995, df = n-p-1)
+CI_99 <- tibble(lower_bound = adbom_beta_hat - t_pct*abdom_std_error,
+                upper_bound = adbom_beta_hat + t_pct*abdom_std_error)
+CI_99
+```
+  The 99% confidence interval for $\beta_{abdom}$ is (0.7033266, 1.111842). This means that the interval ranging from 0.7033266 to 1.111842 cm is expected to contain the true value of $\beta_{abdom}$ 99% of the time.
+  
+  (h). What is the predicted _brozek_ for a person with the following information:
+  
+  - age = 40
+  - weight = 170
+  - height = 70
+  - neck = 38
+  - chest = 100
+  - abdom = 91
+  - hip = 99
+  
+```{r predict-brozek}
+x0 <- data.frame(age = 40, weight = 170, height = 70, neck = 38, chest = 100, abdom = 91, hip = 99)
+predicted <- predict(mod, newdata = x0, interval = "prediction")
+predicted[1]
+```
+  The predicted _brozek_ for a person of those characteristics is 18.23699% body fat.
+  
+  (i). What is the 95\% prediction interval for the observation in part (h)? What is the interpretation of this prediction interval?
+  
+```{r}
+x0 <- data.frame(age = 40, weight = 170, height = 70, neck = 38, chest = 100, abdom = 91, hip = 99)
+predicted <- predict(mod, newdata = x0, interval = "prediction", level = .95)
+predicted[2:3]
+```
+The 95\% prediction interval for the observation in part (h) is (10.10949, 26.36448). This means we are 95\% confident that the future response will fall within the interval 10.10949 and 26.36448.
+
+----------------------------------------------
+
+Q2. Consider the multiple linear regression model:
+$$
+\mathbf{y} = \mathbf{X} \beta + \varepsilon, \qquad \text{where} \qquad \varepsilon \sim N(\mathbf{0}, \sigma^2 \mathbf{I}_n).
+$$
+Show that the covariance matrix of the (ordinary) least squares estimate has the following form:
+$$
+\mathrm{Cov}(\hat{\beta}) =  \sigma^2 (\mathbf{X}^T \mathbf{X})^{-1}.
+$$
+
+
+Hint: For a generic random vector $z \in \mathbb{R}^p$ and a fixed matrix $\mathbf{A} \in \mathbb{R}^{m \times p}$, we have
+$$
+\mathrm{Cov}(\mathbf{A} z) = \mathbf{A} \mathrm{Cov}(z) \mathbf{A}^T.
+$$
+
+(Answer located in a separate PDF.)
